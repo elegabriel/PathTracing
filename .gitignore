@@ -1,0 +1,13 @@
+#
+result
+Debug
+Release
+*.png
+*.obj
+*.mtl
+*.sln
+*.db
+*.vcxproj
+*.filters
+*.user
+.vs
