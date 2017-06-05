@@ -21,10 +21,10 @@ public:
 	}
 
 	Float MaxColor()const {
-		Float maxKa = maxFloat(maxFloat(Ka[0], Ka[1]), Ka[2]);
+		//Float maxKa = maxFloat(maxFloat(Ka[0], Ka[1]), Ka[2]);
 		Float maxKd = maxFloat(maxFloat(Kd[0], Kd[1]), Kd[2]);
 		Float maxKs = maxFloat(maxFloat(Ks[0], Ks[1]), Ks[2]);
-		return maxFloat(maxFloat(maxFloat(maxKa, maxKd), maxKs),Tr);
+		return maxFloat(maxFloat( maxKd, maxKs),Tr);
 	}
 	std::string name;
 	/*ambient color*/

@@ -45,6 +45,10 @@ public:
 		return Spectrum(x*f, y*f, z*f);
 	}
 
+	friend Spectrum operator-(const Float &f, const Spectrum &s) {
+		return Spectrum(f - s.x, f - s.y, f - s.z);
+	}
+
 protected:
 	/*RGB*/
 	Float x, y, z;
