@@ -1,7 +1,4 @@
 #
-result
-Debug
-Release
 *.png
 *.obj
 *.mtl
@@ -10,4 +7,13 @@ Release
 *.vcxproj
 *.filters
 *.user
+
+#file
 .vs
+result
+Debug
+Release
+
+# office word document
+*.doc
+*.docx

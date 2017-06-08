@@ -294,7 +294,8 @@ bool Scene::readObj(std::string fileName) {
 }
 
 bool Scene::readMtl(std::string fileName) {
-	std::ifstream file(fileName);
+	std::ifstream file;
+	file.open(fileName);
 	if (!file) {
 		TRACE_BUG("file \"%s\" can't be found.", fileName.c_str());
 		return false;
@@ -302,6 +303,8 @@ bool Scene::readMtl(std::string fileName) {
 
 	char buf[MAX_LINE_LENGTH] = { 0 };
 	Int line = 1;
+	std::streampos pos;
+	file.seekg(0, std::ios::beg);
 
 	while (file)
 	{
@@ -315,9 +318,11 @@ bool Scene::readMtl(std::string fileName) {
 			Material mtl;
 			mtl.name = str;
 			while (file) {
-				std::streampos pos = file.tellg();
 				Float a, b, c;
 				size_t illum;
+				pos = file.tellg();
+
+				line++;
 				if (!file.getline(buf, MAX_LINE_LENGTH)) {
 					if (file)
 						TRACE_BUG("get line %d failed.\n", line);
@@ -353,12 +358,13 @@ bool Scene::readMtl(std::string fileName) {
 				else if (buf[0] == 'i' && sscanf_s(buf, "illum %zd", &illum))
 					mtl.illum = illum;
 				else if (buf[0] == 'n') {
+					line--;
 					file.seekg(pos);
 					break;
 				}
 				else
 					TRACE_BUG("line %d isn't defined.\n", line);
-				line++;
+				
 			}
 			mtl_vector.push_back(mtl);
 		}

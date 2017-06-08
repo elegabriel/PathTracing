@@ -6,13 +6,14 @@
 
 class Integrator {
 public:
-	Integrator(Film *film,const size_t &depth = 3):m_film(film), m_depth(depth){}
+	Integrator(Film *film, const size_t &depth = 3) :m_film(film), m_depth(depth) { count = 0; }
 
 	bool render(const Scene* scene,const Camera* camera, Sampler* sampler);
 	Spectrum Li(const Scene *scene, const Ray &ray) ;
 
 	Film *m_film;
 	Int m_depth;
+	Int count;
 };
 
 

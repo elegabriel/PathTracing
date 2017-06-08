@@ -14,10 +14,18 @@ public:
 		Ka = Spectrum(0.0f);
 		Kd = Spectrum(0.0f);
 		Ks = Spectrum(0.0f);
-		Ns = 0.0f;
+		Ns = 1.0f;
 		Ni = 0.0f;
 		Tr = 0.0f;
 		illum = 0;
+	}
+
+	inline Float MaxDiffuse()const {
+		return maxFloat(Kd[0], maxFloat(Kd[1], Kd[2]));
+	}
+
+	inline Float MaxSpecular()const {
+		return maxFloat(Ks[0], maxFloat(Ks[1], Ks[2]));
 	}
 
 	Float MaxColor()const {

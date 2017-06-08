@@ -147,12 +147,19 @@ Float PerspectiveCamera::GenerateRay(const CameraSample &sample,
 	//	ray->d = Normalize(Pfocus - ray->o);
 	//}
 	//ray->time = sample.time;
+	const Float xyrate = 1.f;// = (Float)xResolution / (Float)yResolution;
 
 	Float x = (sample.imageX - (Float)xResolution / 2.f) / ((Float)xResolution / 2.f);
-	x *= tanf(Radians(fov / 2.f));
+	x *= tanf(Radians(fov / 2.f))*xyrate;
 	Float y = (sample.imageY - (Float)yResolution / 2.f) / ((Float)yResolution / 2.f);
 	y *= tanf(Radians(fov / 2.f));
-	ray->d = Normalize(Vector(x, y, -1.f));
+	Float z = -1.f;
+	const static Float rotate = Radians(-25.f);
+
+	Float ry = y*cosf(rotate) - z*sinf(rotate);
+	Float rz = y*sinf(rotate) + z*cosf(rotate);
+
+	ray->d = Normalize(Vector(x, ry, rz));
 	for (int i = 0; i < 3; ++i) {
 		if (ray->d[i] == 0)
 			TRACE_BUG("ray->d[%d]: %f\n", i, ray->d[i]);

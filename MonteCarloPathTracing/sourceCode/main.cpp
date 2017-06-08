@@ -9,7 +9,7 @@ int main(int argc, char** argv)
 {
 	// 场景导入
 	Scene scene(Spectrum(0.f));
-	if (!scene.readObj("scene01.obj"))
+	if (!scene.readObj("scene02.obj"))
 		TRACE_BUG("Read obj file failed.\n");
 	//sc.writeObj("out.obj");
 
@@ -28,8 +28,15 @@ int main(int argc, char** argv)
 	Transform t(m*tz);
 	AnimatedTransform cam2world(&t, 0, &t, 1);
 	Film film(500, 500,false);
+	Camera* camera = CreatePerspectiveCamera(cam2world, &film, 45.f, Point(2.6633f, 9.8534f, 24.0849f));
 
-	Camera* camera = CreatePerspectiveCamera(cam2world, &film, 45.f, Point(0.f,5.0f,14.5f));
+	//Camera* camera = CreatePerspectiveCamera(cam2world, &film, 45.f, Point(1.92f, 8.44f,18.f));
+
+	//向下15度之前
+	//Camera* camera = CreatePerspectiveCamera(cam2world, &film, 45.f, Point(1.92f, 3.24f,18.f));
+	//Camera* camera = CreatePerspectiveCamera(cam2world, &film, 45.f, Point(1.92f, 3.24f,12.34f));
+	//Camera* camera = CreatePerspectiveCamera(cam2world, &film, 90.f, Point(1.92f, 3.0f, 10.f));
+
 	camera->xResolution = film.xResolution;
 	camera->yResolution = film.yResolution;
 
@@ -37,7 +44,7 @@ int main(int argc, char** argv)
 	Sampler* sampler = CreateHaltonSampler(&film, camera, 4096);
 
 	// Integrator (film, path depth)
-	Integrator integrator(&film, 16);
+	Integrator integrator(&film, 36);
 
 	// Renderere
 	Renderer render(sampler, camera, &integrator);

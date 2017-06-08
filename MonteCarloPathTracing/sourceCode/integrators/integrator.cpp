@@ -57,6 +57,7 @@ bool Integrator::render(const Scene * scene, const Camera * camera, Sampler * sa
 
 #define specular_n 3;
 
+const static size_t rr_depth = 3;
 
 
 Spectrum Integrator::Li(const Scene * scene, const Ray & ray)
@@ -67,7 +68,7 @@ Spectrum Integrator::Li(const Scene * scene, const Ray & ray)
 
 	if (isect.isValid) {
 		Spectrum spec(0.f);
-		//hit point
+		// x is hit point
 		Point x = ray.o + ray.d*isect.t;
 		bool is_hit_face_back = ray.d * isect.normal > FLOAT_EPSILON;
 
@@ -82,16 +83,119 @@ Spectrum Integrator::Li(const Scene * scene, const Ray & ray)
 			is_diffuse = !is_Tr && !is_emitter && (diffuse > FLOAT_EPSILON);
 			//is_diffuse = !is_Tr && !is_emitter && (diffuse > FLOAT_EPSILON);
 		//return material.Ka + material.Kd + material.Ks;
-		//Float p = (Float)rand() / (Float)RAND_MAX;
-		
-		/*if (p < material.MaxColor())
-			p = 1 / material.MaxColor();
-		else
-			return material.Ka;*/
 
-		Float p = 1.f;
+		//环境光 不考虑自身diffuse
 		if (is_emitter)
-			return spec += material.Ka;
+			spec += material.Ka;
+
+		//透明物体 不考虑本身diffuse
+		if (is_Tr) {
+			//d - isect.normal * 2 * (isect.normal*(ray.d)) 全反射方向
+
+			//入射
+			bool into = !is_hit_face_back;
+			Vector nl = !is_hit_face_back ? isect.normal : -isect.normal;
+			//折射率
+			Float nnt = is_hit_face_back ? material.Ni : 1.f / material.Ni,
+				ddn = ray.d*nl, cos2t;
+			//全反射
+			Ray reflRay(x, ray.d - isect.normal * 2 * (isect.normal*(ray.d)), ray.time);
+			dRcpRay(reflRay);
+			reflRay.depth = ray.depth + 1;
+			if ((cos2t = 1 - nnt*nnt*(1 - ddn*ddn)) < 0) {
+				spec += Li(scene, reflRay);
+				return spec;
+			}
+
+			Vector tdir =
+				Normalize(ray.d*nnt - isect.normal*((into ? 1 : -1)*(ddn*nnt + sqrt(cos2t))));
+			Ray next_ray(x, tdir, ray.time);
+			dRcpRay(next_ray);
+			next_ray.depth = ray.depth + 1;
+			Float Tr = material.Tr, Re = 1 - Tr, P = 0.25f + 0.5f*Re, RP = Re / P, TP = Tr / (1 - P);
+			Float u3 = (Float)rand() / (Float)RAND_MAX;
+			spec += ray.depth > 2 ? (u3 < P ?
+				Li(scene, reflRay)*RP : Li(scene, next_ray)*TP) :
+				Li(scene, reflRay)*Re + Li(scene, next_ray)*Tr;
+		}
+
+		//specular R.R.
+		Float p = (Float)rand() / (Float)RAND_MAX;
+		Float rr_specular = 1.f;
+		if (ray.depth > rr_depth) {
+			if (p <= material.MaxSpecular())
+				rr_specular = 1 / material.MaxSpecular();
+			else
+				is_specular = false;
+		}
+
+		//镜面物体
+		if (is_specular) {
+			//if (is_hit_face_back) isect.normal = -isect.normal;
+			count++;
+			if (!is_hit_face_back) {
+				Float Ns = material.Ns;
+				Float u1 = (Float)rand() / (Float)RAND_MAX;
+				Float u2 = (Float)rand() / (Float)RAND_MAX;
+				Float r1 = 2 * (Float)M_PI * u1, r2 = u2, r2ss = powf(u2, 1.f / (Float)(Ns*1.f + 1)),
+				r2ss2 = sqrt(1 - r2ss);
+				Vector w = ray.d - isect.normal * 2 * (isect.normal*ray.d),
+					u = Normalize((fabs(w.x)>.1 ? Vector(0.f, 1.f, 0.f) : Vector(1.f, 0.f, 0.f)) % w),
+					v = w%u;
+
+				Vector d = Normalize(u*cos(r1)*r2ss2 + v*sin(r1)*r2ss2 + w*sqrt(r2ss));
+				/*std::cout << r2ss << std::endl;
+				std::cout << count<<' ' << "w " << w.x << ',' << w.y << ',' << w.z << std::endl;
+				std::cout << count<<' ' << "d " << d.x << ',' << d.y << ',' << d.z << std::endl;*/
+				Ray next_ray(x, d, ray.time);
+				dRcpRay(next_ray);
+				next_ray.depth = ray.depth + 1;
+				spec += Li(scene, next_ray)*material.Ks*rr_specular;
+			}
+			
+			/*if (!is_hit_face_back) {
+				Vector dir = ray.d - isect.normal * 2 * (isect.normal*ray.d);
+				Ray next_ray(x, dir, ray.time);
+				dRcpRay(next_ray);
+				next_ray.depth = ray.depth + 1;
+				spec += Li(scene, next_ray)*material.Ks*rr_specular;
+			}*/
+		}
+
+		//diffuse R.R.
+		Float rr_diffuse = 1.f;
+		if (ray.depth > rr_depth) {
+			if (p > material.MaxSpecular() && p < material.MaxDiffuse() + material.MaxSpecular())
+				rr_diffuse = 1 / material.MaxDiffuse();
+			else
+				is_diffuse = false;
+		}
+		
+		 //diffuse
+		if (is_diffuse) {
+			//if (is_hit_face_back) isect.normal = -isect.normal;
+			if (!is_hit_face_back) 
+			{
+				Float u1 = (Float)rand() / (Float)RAND_MAX;
+				Float u2 = (Float)rand() / (Float)RAND_MAX;
+				Float r1 = 2 * (Float)M_PI * u1, r2 = u2, r2sd = sqrtf(u2);
+				Vector w = isect.normal,
+					u = Normalize((fabs(w.x) > .1 ? Vector(0.f, 1.f, 0.f) : Vector(1.f, 0.f, 0.f)) % w),
+					v = w%u;
+				Vector d = Normalize(u*cos(r1)*r2sd + v*sin(r1)*r2sd + w*sqrt(1 - r2));
+				Ray next_ray(x, d, ray.time);
+				dRcpRay(next_ray);
+				next_ray.depth = ray.depth + 1;
+				//has bug
+				spec += Li(scene, next_ray)*material.Kd*rr_diffuse;
+			}
+		}
+
+		return spec;
+
+		/*Float p = 1.f;
+		if (is_emitter)
+			return spec += material.Ka;*/
 		//if (ray.depth > m_depth) {
 		//	if (is_diffuse) {
 
@@ -136,77 +240,9 @@ Spectrum Integrator::Li(const Scene * scene, const Ray & ray)
 		//	return material.Ka;
 		//}
 
-		//环境光 不考虑自身diffuse
 		
 
-		//透明物体 不考虑本身diffuse
-		if (is_Tr) {
-			//d - isect.normal * 2 * (isect.normal*(ray.d)) 全反射方向
-
-			//入射
-			bool into = !is_hit_face_back;
-			Vector nl = !is_hit_face_back ? isect.normal : -isect.normal;
-			//折射率
-			Float nnt = is_hit_face_back ? material.Ni : 1.f / material.Ni,
-				ddn = ray.d*nl, cos2t;
-			//全反射
-			Ray reflRay(x, ray.d - isect.normal * 2 * (isect.normal*(ray.d)), ray.time);
-			dRcpRay(reflRay);
-			reflRay.depth = ray.depth + 1;
-			if ((cos2t = 1 - nnt*nnt*(1 - ddn*ddn)) < 0) {
-				spec += Li(scene, reflRay);
-				return spec;
-			}
-
-			Vector tdir =
-				Normalize(ray.d*nnt - isect.normal*((into ? 1 : -1)*(ddn*nnt + sqrt(cos2t))));
-			Ray next_ray(x, tdir, ray.time);
-			dRcpRay(next_ray);
-			next_ray.depth = ray.depth + 1;
-			Float Tr = material.Tr, Re = 1 - Tr, P = 0.25f + 0.5f*Re, RP = Re / P, TP = Tr / (1 - P);
-			Float u3 = (Float)rand() / (Float)RAND_MAX;
-			spec += ray.depth > 2 ? (u3 < P ?
-				Li(scene, reflRay)*RP : Li(scene, next_ray)*TP) :
-				Li(scene, reflRay)*Re + Li(scene, next_ray)*Tr;
-		}
-
-		//镜面物体
-		if (is_specular) {
-			if (is_hit_face_back) isect.normal = -isect.normal;
-
-			/*Float u1 = (Float)rand() / (Float)RAND_MAX;
-			Float u2 = (Float)rand() / (Float)RAND_MAX;
-			Float r1 = 2 * (Float)M_PI * u1, r2 = u2, r2ss = powf(u2, 1.f / (Float)(3 + 1));
-			Vector w = ray.d - isect.normal * 2 * (isect.normal*(ray.d)),
-			u = Normalize((fabs(w.x)>.1 ? Vector(0.f, 1.f, 0.f) : Vector(1.f, 0.f, 0.f)) % w),
-			v = w%u;
-
-			Vector d = Normalize(u*cos(r1)*r2ss + v*sin(r1)*r2ss + w*sqrt(1 - r2));
-			Ray next_ray(x, d, ray.time);*/
-
-			Vector dir = ray.d - isect.normal * 2 * (isect.normal*ray.d);
-			Ray next_ray(x, dir, ray.time);
-			dRcpRay(next_ray);
-			next_ray.depth = ray.depth + 1;
-			spec += Li(scene, next_ray)*material.Ks;
-		}
-
-		// diffuse
-		if (is_diffuse) {
-			if (is_hit_face_back) isect.normal = -isect.normal;
-			Float u1 = (Float)rand() / (Float)RAND_MAX;
-			Float u2 = (Float)rand() / (Float)RAND_MAX;
-			Float r1 = 2 * (Float)M_PI * u1, r2 = u2, r2sd = sqrtf(u2);
-			Vector w = isect.normal,
-				u = Normalize((fabs(w.x) > .1 ? Vector(0.f, 1.f, 0.f) : Vector(1.f, 0.f, 0.f)) % w),
-				v = w%u;
-			Vector d = Normalize(u*cos(r1)*r2sd + v*sin(r1)*r2sd + w*sqrt(1 - r2));
-			Ray next_ray(x, d, ray.time);
-			dRcpRay(next_ray);
-			next_ray.depth = ray.depth + 1;
-			//has bug
-			spec += Li(scene, next_ray)*material.Kd;
-		}
+		
 
 		/*if (ray.depth >= m_depth && diffuse >FLOAT_EPSILON && ) {
 
@@ -240,7 +276,7 @@ Spectrum Integrator::Li(const Scene * scene, const Ray & ray)
 		//		return material.Ks*0.78f;
 		//	return material.Ka;*/
 		//}
-		return spec* p;
+		
 	}
 	else {
 		/*if(ray.depth ==0)
